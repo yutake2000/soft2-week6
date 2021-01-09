@@ -11,6 +11,9 @@ static const int nsymbols = 256 + 1;
 //int symbol_count[nsymbols];
 int * symbol_count;
 
+static int *codes[nsymbols];
+static int code_len[nsymbols];
+
 // ノードを表す構造体
 typedef struct node
 {
@@ -40,10 +43,10 @@ static Node *pop_min(int *n, Node *nodep[]);
 static Node *build_tree(void);
 
 // 木を深さ優先で操作する関数
-static void traverse_tree(const int depth, int *code, int *code_len, Node *np);
+static void traverse_tree(const int depth, const Node *np);
 
 // コード語を表示する関数
-static void print_code(const Node *np);
+static void print_code(const int symbol);
 
 
 
@@ -125,11 +128,11 @@ static Node *build_tree()
   return (n==0)?NULL:nodep[0];
 }
 
-static void print_code(const Node *np) {
+static void print_code(const int symbol) {
 
-  printf("%c ", np->symbol);
-  for (int i=0; i<np->code_len; i++) {
-    printf("%d", np->code[i]);
+  printf("%c ", symbol);
+  for (int i=0; i<code_len[symbol]; i++) {
+    printf("%d", codes[symbol][i]);
   }
   printf("\n");
 
@@ -137,26 +140,29 @@ static void print_code(const Node *np) {
 
 // Perform depth-first traversal of the tree
 // 深さ優先で木を走査する
-static void traverse_tree(const int depth, int *code, int *code_len, Node *np)
+static void traverse_tree(const int depth, const Node *np)
 {
 
+  static int code[nsymbols] = {0};
+
   if (np->symbol >= 0) {
-    memcpy(np->code, code, sizeof(int) * *code_len);
-    np->code_len = *code_len;
-    print_code(np);
+    int *temp = (int*)calloc(depth, sizeof(int));
+    memcpy(temp, code, sizeof(int) * depth);
+    codes[np->symbol] = temp;
+    code_len[np->symbol] = depth;
+    print_code(np->symbol);
   }
   
   if (np->left != NULL) {
-    code[(*code_len)++] = 0;
-    traverse_tree(depth + 1, code, code_len, np->left);
+    code[depth] = 0;
+    traverse_tree(depth + 1, np->left);
 
-    code[(*code_len)++] = 1;
-    traverse_tree(depth + 1, code, code_len, np->right);
+    code[depth] = 1;
+    traverse_tree(depth + 1, np->right);
 
-    code[*code_len+1] = 0;
+    code[depth] = 0;
   }
 
-  (*code_len)--;
 }
 
 // この関数のみ外部 (main) で使用される (staticがついていない)
@@ -170,8 +176,6 @@ int encode(const char *filename)
     return EXIT_FAILURE;
   }
   
-  int* code = (int*)calloc(260, sizeof(int));
-  int code_len = 0;
-  traverse_tree(0, code, &code_len, root);
+  traverse_tree(0, root);
   return EXIT_SUCCESS;
 }
