@@ -162,6 +162,8 @@ static void print_code(const int symbol) {
 
   if (symbol == '\n')
     printf(" '\\n' \n");
+  else if (symbol == '\r')
+    printf(" '\\r' \n");
   else
     printf(" '%c' \n", symbol);
 
