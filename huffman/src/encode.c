@@ -57,7 +57,7 @@ static void count_symbols(FILE *fp)
   while((c = fgetc(fp)) != EOF) {
     symbol_count[c]++;
   }
-  
+
 }
 
 static Node *create_node(int symbol, int count, Node *left, Node *right)
@@ -194,6 +194,8 @@ static void write_symbol(FILE *fout, const int symbol) {
   if (symbol == -1) {
     buffer <<= 8 - buffer_len;
     fwrite(&buffer, sizeof(char), 1, fout);
+    buffer = 0;
+    buffer_len = 0;
     return;
   }
 
@@ -247,6 +249,11 @@ int encode(FILE *fin)
   if (root == NULL){
     fprintf(stderr,"A tree has not been constructed.\n");
     return EXIT_FAILURE;
+  }
+
+  for (int i=0; i<nsymbols; i++) {
+    codes[i] = NULL;
+    code_len[i] = 0;
   }
   
   printf("┐\n");

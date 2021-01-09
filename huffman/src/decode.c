@@ -18,6 +18,11 @@ static void read_symbol(int *arr, int len, FILE *fin) {
   static unsigned char buffer;
   static int buffer_i = 8;
 
+  if (len == -1) {
+    buffer_i = 8;
+    return;
+  }
+
   for (int i=0; i<len; i++) {
     if (buffer_i == 8) {
       int nitems = fread(&buffer, sizeof(char), 1, fin);
@@ -61,57 +66,92 @@ static int write_symbol(int *buffer, int buffer_len, int buffer_i, FILE *fout) {
 
 }
 
-void expand(FILE *fin, FILE *fout) {
+void expand(FILE *fin) {
 
-  int file_len; // 本体のビット数
-  fread(&file_len, sizeof(int), 1, fin);
+  int nfiles;
+  fread(&nfiles, sizeof(int), 1, fin);
 
-  // 0-255に対応する符号語の長さ(ビット数)を読み込む
-  for (int i=0; i<nsymbols; i++) {
-    fread(&code_len[i], sizeof(int), 1, fin);
-  }
+  for (int file_i=0; file_i<nfiles; file_i++) {
 
-  // 0-255に対応する符号語を読み込む
-  for (int i=0; i<nsymbols; i++) {
-    if (code_len[i] > 0) {
-      int *temp = (int*)calloc(code_len[i], sizeof(int));
-      read_symbol(temp, code_len[i], fin);
-      codes[i] = temp;
-      for (int j=0; j<code_len[i]; j++) {
-        printf("%d ", codes[i][j]);
+    int filename_len;
+    fread(&filename_len, sizeof(int), 1, fin);
+
+    char output_filename[256];
+    strcpy(output_filename, expanded_dir);
+    fread(output_filename + strlen(expanded_dir), sizeof(char), filename_len, fin);
+    printf("%s\n", output_filename);
+
+    FILE *fout = fopen(output_filename, "wb");
+    if (fout == NULL) {
+      fprintf(stderr, "error: cannot open '%s'\n", output_filename);
+      exit(1);
+    }
+
+    int file_len; // 本体のビット数
+    fread(&file_len, sizeof(int), 1, fin);
+
+    // 初期化
+    for (int i=0; i<nsymbols; i++) {
+      codes[i] = NULL;
+      code_len[i] = 0;
+    }
+
+    // 0-255に対応する符号語の長さ(ビット数)を読み込む
+    for (int i=0; i<nsymbols; i++) {
+      fread(&code_len[i], sizeof(int), 1, fin);
+    }
+
+    // 0-255に対応する符号語を読み込む
+    for (int i=0; i<nsymbols; i++) {
+      if (code_len[i] > 0) {
+        int *temp = (int*)calloc(code_len[i], sizeof(int));
+        read_symbol(temp, code_len[i], fin);
+        codes[i] = temp;
+
+        if (i == '\n')
+          printf("\\n ");
+        else
+          printf("%2c ", i);
+        for (int j=0; j<code_len[i]; j++) {
+          printf("%d ", codes[i][j]);
+        }
+        printf("\n");
       }
-      printf("\n");
     }
-  }
 
-  int buffer_len = 256;
-  int buffer_i = 256;
-  int buffer[buffer_len];
-  while(file_len > 0) {
-    // 前に詰めて空いた分だけ読み込む
-    if (file_len < buffer_i) {
-      read_symbol(buffer + (buffer_len - buffer_i), file_len, fin);
-      for (int i = buffer_len - buffer_i + file_len; i < buffer_len; i++) {
-        buffer[i] = -1;
+    int buffer_len = 256;
+    int buffer_i = 256;
+    int buffer[buffer_len];
+    while(file_len > 0) {
+      // 前に詰めて空いた分だけ読み込む
+      if (file_len < buffer_i) {
+        read_symbol(buffer + (buffer_len - buffer_i), file_len, fin);
+        for (int i = buffer_len - buffer_i + file_len; i < buffer_len; i++) {
+          buffer[i] = -1;
+        }
+        file_len = 0;
+      } else {
+        read_symbol(buffer + (buffer_len - buffer_i), buffer_i, fin);
+        file_len -= buffer_i;
       }
-      file_len = 0;
-    } else {
-      read_symbol(buffer + (buffer_len - buffer_i), buffer_i, fin);
-      file_len -= buffer_i;
+
+      buffer_i = 0;
+      while (buffer_i < buffer_len) {
+        int bits = write_symbol(buffer, buffer_len, buffer_i, fout);
+        buffer_i += bits;
+        if (bits == 0) // 符号語の途中でバッファの終端に達した場合
+          break; 
+      }
+
+      // 読み込んだ分前に詰める
+      for (int i=0; i<buffer_len - buffer_i; i++) {
+        buffer[i] = buffer[i + buffer_i];
+      }
     }
 
-    buffer_i = 0;
-    while (buffer_i < buffer_len) {
-      int bits = write_symbol(buffer, buffer_len, buffer_i, fout);
-      buffer_i += bits;
-      if (bits == 0) // 符号語の途中でバッファの終端に達した場合
-        break; 
-    }
+    read_symbol(NULL, -1, NULL); // bufferを破棄
 
-    // 読み込んだ分前に詰める
-    for (int i=0; i<buffer_len - buffer_i; i++) {
-      buffer[i] = buffer[i + buffer_i];
-    }
+    fclose(fout);
   }
 
 }
