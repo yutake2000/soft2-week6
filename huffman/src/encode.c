@@ -21,8 +21,6 @@ typedef struct node
   int count;
   struct node *left;
   struct node *right;
-  int code_len;
-  int *code;
 } Node;
 
 // このソースで有効なstatic関数のプロトタイプ宣言
@@ -60,6 +58,8 @@ static void count_symbols(const char *filename)
   }
 
   symbol_count = (int*)calloc(nsymbols, sizeof(int));
+
+  symbol_count[0] = 1; // NULL文字(ファイル終了の目印)
   
   int c;
   while((c = fgetc(fp)) != EOF) {
@@ -72,8 +72,7 @@ static void count_symbols(const char *filename)
 static Node *create_node(int symbol, int count, Node *left, Node *right)
 {
   Node *ret = (Node *)malloc(sizeof(Node));
-  *ret = (Node){ .symbol = symbol, .count = count, .left = left, .right = right, .code_len = 0};
-  ret->code = (int*)calloc(260, sizeof(int));
+  *ret = (Node){ .symbol = symbol, .count = count, .left = left, .right = right};
   return ret;
 }
 
@@ -196,6 +195,76 @@ static void traverse_tree(const int depth, const Node *np)
 
 }
 
+static void write_symbol(FILE *out, const int symbol) {
+
+  static unsigned char buffer = 0;
+  static int buffer_len = 0;
+
+  for (int i=0; i<code_len[symbol]; i++) {
+    buffer <<= 1;
+    buffer |= codes[symbol][i];
+    buffer_len++;
+    if (buffer_len == 8) {
+      fprintf(out, "%c", buffer);
+      buffer = 0;
+      buffer_len = 0;
+    }
+  }
+
+  if (symbol == 0) {
+    buffer <<= 8 - buffer_len;
+    fprintf(out, "%c", buffer);
+  }
+
+}
+
+static void compress(const char *filename) {
+
+  FILE *out = fopen("output.dat", "wb");
+  if (out == NULL) {
+    fprintf(stderr, "error: cannot open 'output.dat'\n");
+    exit(1);
+  }
+
+  FILE *fp = fopen(filename, "rb");
+  if (fp == NULL) {
+    fprintf(stderr, "error: cannot open '%s'\n", filename);
+    exit(1);
+  }
+
+  char symbols = 0;
+  for (int i=0; i<nsymbols; i++) {
+    if (code_len[i] > 0) symbols++;
+  }
+  fprintf(out, "%c", symbols);
+
+  for (int i=0; i<nsymbols; i++) {
+    if (code_len[i] > 0) {
+      fprintf(out, "%c%c", i, code_len[i]);
+    }
+  }
+
+  for (int i=0; i<nsymbols; i++) {
+    if (code_len[i] > 0) {
+      write_symbol(out, i);
+    }
+  }
+  
+  int c;
+  while((c = fgetc(fp)) != EOF) {
+    write_symbol(out, c);
+  }
+  write_symbol(out, 0);
+
+  fclose(fp);
+}
+
+static void expand(const char *filename) {
+
+  
+
+}
+
 // この関数のみ外部 (main) で使用される (staticがついていない)
 int encode(const char *filename)
 {
@@ -209,6 +278,8 @@ int encode(const char *filename)
   
   printf("┐\n");
   traverse_tree(0, root);
+
+  compress(filename);
 
   return EXIT_SUCCESS;
 }
