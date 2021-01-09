@@ -6,8 +6,7 @@
 
 
 // 各シンボルの数を数える為にポインタを定義
-// 数を数える為に、1byteの上限+1で設定しておく
-static const int nsymbols = 256 + 1; 
+static const int nsymbols = 256;
 //int symbol_count[nsymbols];
 int * symbol_count;
 
@@ -58,8 +57,6 @@ static void count_symbols(const char *filename)
   }
 
   symbol_count = (int*)calloc(nsymbols, sizeof(int));
-
-  symbol_count[0] = 1; // NULL文字(ファイル終了の目印)
   
   int c;
   while((c = fgetc(fp)) != EOF) {
@@ -195,80 +192,76 @@ static void traverse_tree(const int depth, const Node *np)
 
 }
 
-static void write_symbol(FILE *out, const int symbol) {
+static void write_symbol(FILE *fout, const int symbol) {
 
-  static unsigned char buffer = 0;
+  static char buffer = 0;
   static int buffer_len = 0;
+
+  if (symbol == -1) {
+    buffer <<= 8 - buffer_len;
+    fwrite(&buffer, sizeof(char), 1, fout);
+    return;
+  }
 
   for (int i=0; i<code_len[symbol]; i++) {
     buffer <<= 1;
     buffer |= codes[symbol][i];
     buffer_len++;
     if (buffer_len == 8) {
-      fprintf(out, "%c", buffer);
+      fwrite(&buffer, sizeof(char), 1, fout);
       buffer = 0;
       buffer_len = 0;
     }
   }
 
-  if (symbol == 0) {
-    buffer <<= 8 - buffer_len;
-    fprintf(out, "%c", buffer);
-  }
-
 }
 
-static void compress(const char *filename) {
+static void compress(const char *input_filename, const char *output_filename) {
 
-  FILE *out = fopen("output.dat", "wb");
-  if (out == NULL) {
-    fprintf(stderr, "error: cannot open 'output.dat'\n");
+  FILE *fin = fopen(input_filename, "rb");
+  if (fin == NULL) {
+    fprintf(stderr, "error: cannot open '%s'\n", input_filename);
     exit(1);
   }
 
-  FILE *fp = fopen(filename, "rb");
-  if (fp == NULL) {
-    fprintf(stderr, "error: cannot open '%s'\n", filename);
+  FILE *fout = fopen(output_filename, "wb");
+  if (fout == NULL) {
+    fprintf(stderr, "error: cannot open '%s'\n", output_filename);
     exit(1);
   }
 
-  char symbols = 0;
-  for (int i=0; i<nsymbols; i++) {
-    if (code_len[i] > 0) symbols++;
-  }
-  fprintf(out, "%c", symbols);
-
-  for (int i=0; i<nsymbols; i++) {
-    if (code_len[i] > 0) {
-      fprintf(out, "%c%c", i, code_len[i]);
-    }
-  }
-
-  for (int i=0; i<nsymbols; i++) {
-    if (code_len[i] > 0) {
-      write_symbol(out, i);
-    }
-  }
-  
   int c;
-  while((c = fgetc(fp)) != EOF) {
-    write_symbol(out, c);
+  int sum_len = 0;
+  while((c = fgetc(fin)) != EOF) {
+    sum_len += code_len[c];
   }
-  write_symbol(out, 0);
+  fwrite(&sum_len, sizeof(int), 1, fout);
 
-  fclose(fp);
-}
+  rewind(fin);
 
-static void expand(const char *filename) {
+  for (int i=0; i<nsymbols; i++) {
+    fwrite(&code_len[i], sizeof(int), 1, fout);
+  }
 
+  for (int i=0; i<nsymbols; i++) {
+    if (code_len[i] > 0) {
+      write_symbol(fout, i);
+    }
+  }
   
+  while((c = fgetc(fin)) != EOF) {
+    write_symbol(fout, c);
+  }
+  write_symbol(fout, -1);
 
+  fclose(fin);
+  fclose(fout);
 }
 
 // この関数のみ外部 (main) で使用される (staticがついていない)
-int encode(const char *filename)
+int encode(const char *input_filename, const char *output_filename)
 {
-  count_symbols(filename);
+  count_symbols(input_filename);
   Node *root = build_tree();
 
   if (root == NULL){
@@ -279,7 +272,7 @@ int encode(const char *filename)
   printf("┐\n");
   traverse_tree(0, root);
 
-  compress(filename);
+  compress(input_filename, output_filename);
 
   return EXIT_SUCCESS;
 }
