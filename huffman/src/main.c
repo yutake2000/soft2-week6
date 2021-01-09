@@ -10,7 +10,7 @@ char *expanded_dir = "expanded/";
 int main(int argc, char **argv)
 {
 	if (argc < 3) {
-		fprintf(stderr, "usage: %s (compress|expand) <input filename> <output filename>\n",argv[0]);
+		fprintf(stderr, "usage: %s (compress <output filename> <input filename...> | expand <input filename>) \n",argv[0]);
 		exit(1);
 	}
 
@@ -48,7 +48,6 @@ int main(int argc, char **argv)
 	} else if(strcmp(argv[1], "expand") == 0) {
 		mkdir(expanded_dir, 0777);
 		char *input_filename = argv[2];
-		char *output_filename = argv[3];
 		FILE *fin = fopen(input_filename, "rb");
 		if (fin == NULL) {
 			fprintf(stderr, "error: cannot open '%s'\n", input_filename);
