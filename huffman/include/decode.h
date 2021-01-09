@@ -1,6 +1,6 @@
-#ifndef HUFFMAN_ENCODE_H
-#define HUFFMAN_ENCODE_H
+#ifndef HUFFMAN_DECODE_H
+#define HUFFMAN_DECODE_H
 
-int expand(const char *input_filename, const char *output_filename);
+void expand(FILE *fin, FILE *fout);
 
 #endif

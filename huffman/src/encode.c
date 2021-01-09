@@ -27,7 +27,7 @@ typedef struct node
 
 
 // ファイルを読み込み、static配列の値を更新する関数
-static void count_symbols(const char *filename);
+static void count_symbols(FILE *fp);
 
 // 与えられた引数でNode構造体を作成し、そのアドレスを返す関数
 static Node *create_node(int symbol, int count, Node *left, Node *right);
@@ -48,13 +48,8 @@ static void print_code(const int symbol);
 
 
 // 以下 static関数の実装
-static void count_symbols(const char *filename)
+static void count_symbols(FILE *fp)
 {
-  FILE *fp = fopen(filename, "rb");
-  if (fp == NULL) {
-    fprintf(stderr, "error: cannot open %s\n", filename);
-    exit(1);
-  }
 
   symbol_count = (int*)calloc(nsymbols, sizeof(int));
   
@@ -62,8 +57,7 @@ static void count_symbols(const char *filename)
   while((c = fgetc(fp)) != EOF) {
     symbol_count[c]++;
   }
-
-  fclose(fp);
+  
 }
 
 static Node *create_node(int symbol, int count, Node *left, Node *right)
@@ -216,19 +210,7 @@ static void write_symbol(FILE *fout, const int symbol) {
 
 }
 
-static void compress(const char *input_filename, const char *output_filename) {
-
-  FILE *fin = fopen(input_filename, "rb");
-  if (fin == NULL) {
-    fprintf(stderr, "error: cannot open '%s'\n", input_filename);
-    exit(1);
-  }
-
-  FILE *fout = fopen(output_filename, "wb");
-  if (fout == NULL) {
-    fprintf(stderr, "error: cannot open '%s'\n", output_filename);
-    exit(1);
-  }
+void compress(FILE *fin, FILE *fout) {
 
   int c;
   int sum_len = 0;
@@ -254,14 +236,12 @@ static void compress(const char *input_filename, const char *output_filename) {
   }
   write_symbol(fout, -1);
 
-  fclose(fin);
-  fclose(fout);
 }
 
 // この関数のみ外部 (main) で使用される (staticがついていない)
-int encode(const char *input_filename, const char *output_filename)
+int encode(FILE *fin)
 {
-  count_symbols(input_filename);
+  count_symbols(fin);
   Node *root = build_tree();
 
   if (root == NULL){
@@ -271,8 +251,6 @@ int encode(const char *input_filename, const char *output_filename)
   
   printf("┐\n");
   traverse_tree(0, root);
-
-  compress(input_filename, output_filename);
 
   return EXIT_SUCCESS;
 }

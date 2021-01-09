@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
-//#include "decode.h"
+#include "decode.h"
 
 static const int nsymbols = 256;
 static int *codes[nsymbols];
@@ -61,19 +61,7 @@ static int write_symbol(int *buffer, int buffer_len, int buffer_i, FILE *fout) {
 
 }
 
-void expand(const char *input_filename, const char *output_filename) {
-
-  FILE *fin = fopen(input_filename, "rb");
-  if (fin == NULL) {
-    fprintf(stderr, "error: cannot open '%s'\n", input_filename);
-    exit(1);
-  }
-
-  FILE *fout = fopen(output_filename, "wb");
-  if (fout == NULL) {
-    fprintf(stderr, "error: cannot open '%s'\n", output_filename);
-    exit(1);
-  }
+void expand(FILE *fin, FILE *fout) {
 
   int file_len; // 本体のビット数
   fread(&file_len, sizeof(int), 1, fin);
@@ -125,8 +113,5 @@ void expand(const char *input_filename, const char *output_filename) {
       buffer[i] = buffer[i + buffer_i];
     }
   }
-
-  fclose(fin);
-  fclose(fout);
 
 }

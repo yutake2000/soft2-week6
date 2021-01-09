@@ -1,6 +1,7 @@
 #ifndef HUFFMAN_ENCODE_H
 #define HUFFMAN_ENCODE_H
 
-int encode(const char *input_filename, const char *output_filename);
+int encode(FILE *fin);
+void compress(FILE *fin, FILE *fout);
 
 #endif
