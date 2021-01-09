@@ -130,11 +130,40 @@ static Node *build_tree()
 
 static void print_code(const int symbol) {
 
-  printf("%c ", symbol);
+  int last_one = -1;
+  for (int i=0; i<code_len[symbol]; i++) {
+    if (codes[symbol][i] == 1)
+      last_one = i;
+  }
+
+  for (int i=0; i<last_one; i++) {
+    if (codes[symbol][i] == 0)
+      printf("│ ");
+    else
+      printf("  ");
+  }
+
+  if (last_one == -1) {
+    printf("├─");
+    last_one = 0;
+  } else {
+    printf("└─");
+  }
+
+  for (int i=last_one+1; i<code_len[symbol]; i++) {
+    printf("┬─");
+  }
+
+  printf(" ");
+
   for (int i=0; i<code_len[symbol]; i++) {
     printf("%d", codes[symbol][i]);
   }
-  printf("\n");
+
+  if (symbol == '\n')
+    printf(" '\\n' \n");
+  else
+    printf(" '%c' \n", symbol);
 
 }
 
@@ -176,6 +205,8 @@ int encode(const char *filename)
     return EXIT_FAILURE;
   }
   
+  printf("┐\n");
   traverse_tree(0, root);
+
   return EXIT_SUCCESS;
 }
